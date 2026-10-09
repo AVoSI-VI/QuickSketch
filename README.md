@@ -62,5 +62,6 @@ Category folders use ids such as `c1`, not the display name, so renaming a categ
 #TODO:
 - Make interface more natural
 - Make category addition more obvious
+- add ability to clear canvas
 - bug fixes
 - TBD
