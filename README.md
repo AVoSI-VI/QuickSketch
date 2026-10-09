@@ -19,7 +19,7 @@ The window title is `artproj`. The status line shows the folder where sketches a
 ## Drawing
 
 - Left-drag draws.
-- Middle-drag pans.
+- Middle-drag pans. Left Ctrl held with a left-drag also pans.
 - Scroll zooms toward the pointer.
 
 The brush has a size slider and a color picker. Strokes stay on the canvas until you submit a region or quit. Quitting does not save the canvas itself, only categories, pinned references, and the submission index.

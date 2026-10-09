@@ -1,7 +1,7 @@
 //! Infinite canvas: pan, zoom, and a single round brush.
 
 use egui::{
-    Color32, CursorIcon, Painter, PointerButton, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2,
+    Color32, CursorIcon, Key, Painter, PointerButton, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2,
 };
 
 use crate::stroke::{Circle, Point, Stroke as Ink};
@@ -120,7 +120,7 @@ impl Canvas {
         ui.painter().text(
             rect.left_top() + Vec2::new(8.0, 8.0),
             egui::Align2::LEFT_TOP,
-            "Left-drag draws. Middle-drag pans. Scroll zooms.",
+            "Left-drag draws. Middle-drag or left Ctrl + left-drag pans. Scroll zooms.",
             egui::FontId::proportional(12.0),
             Color32::from_black_alpha(140),
         );
@@ -128,19 +128,23 @@ impl Canvas {
     }
 
     fn apply_view(&mut self, response: &Response, ui: &Ui, rect: Rect) {
-        let (middle_down, middle_pressed, delta, pos) = ui.input(|input| {
-            (
-                input.pointer.button_down(PointerButton::Middle),
-                input.pointer.button_pressed(PointerButton::Middle),
-                input.pointer.delta(),
-                input.pointer.latest_pos(),
-            )
-        });
+        let (middle_down, middle_pressed, ctrl_left, primary_down, delta, pos) =
+            ui.input(|input| {
+                (
+                    input.pointer.button_down(PointerButton::Middle),
+                    input.pointer.button_pressed(PointerButton::Middle),
+                    input.key_down(Key::ControlLeft),
+                    input.pointer.button_down(PointerButton::Primary),
+                    input.pointer.delta(),
+                    input.pointer.latest_pos(),
+                )
+            });
         let over = pos.is_some_and(|pos| rect.contains(pos));
-        if middle_pressed && over {
+        let ctrl_pan = ctrl_left && primary_down;
+        if (middle_pressed && over) || (ctrl_pan && over && !self.panning) {
             self.panning = true;
         }
-        if !middle_down {
+        if !middle_down && !ctrl_pan {
             self.panning = false;
         }
         if self.panning {
@@ -154,25 +158,27 @@ impl Canvas {
             ui.input_mut(|input| input.smooth_scroll_delta = Vec2::ZERO);
             self.view.zoom_at(pos, (scroll * 0.002).exp());
         }
-        let _ = response.clone().on_hover_cursor(CursorIcon::Crosshair);
+        let cursor = if self.panning {
+            CursorIcon::Grabbing
+        } else {
+            CursorIcon::Crosshair
+        };
+        let _ = response.clone().on_hover_cursor(cursor);
     }
 
     fn apply_pointer(&mut self, ui: &Ui, rect: Rect, tool: &Tool) -> Option<Circle> {
         let primary = PointerButton::Primary;
-        let (middle, pressed, down, released, pos) = ui.input(|input| {
+        let (pressed, down, released, pos) = ui.input(|input| {
             (
-                input.pointer.button_down(PointerButton::Middle),
                 input.pointer.button_pressed(primary),
                 input.pointer.button_down(primary),
                 input.pointer.button_released(primary),
                 input.pointer.latest_pos(),
             )
         });
-        if middle {
-            if released {
-                self.commit();
-                self.circle_origin = None;
-            }
+        if self.panning {
+            self.circle_origin = None;
+            self.commit();
             return None;
         }
         let Some(pos) = pos else {

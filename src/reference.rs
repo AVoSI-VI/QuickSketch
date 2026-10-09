@@ -5,6 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::time::Duration;
 
 use egui::{Context, TextureHandle, Ui, Vec2};
 
@@ -42,6 +44,8 @@ pub struct References {
     current: Option<PathBuf>,
     open: Arc<AtomicBool>,
     pub cache: TextureCache,
+    /// File dialog running off the UI thread so the window keeps responding.
+    pending_pick: Option<Receiver<Option<PathBuf>>>,
 }
 
 impl Default for References {
@@ -50,6 +54,7 @@ impl Default for References {
             current: None,
             open: Arc::new(AtomicBool::new(false)),
             cache: TextureCache::default(),
+            pending_pick: None,
         }
     }
 }
@@ -64,11 +69,18 @@ pub fn bar(ui: &mut Ui, refs: &mut References, root: &Path, state: &mut SavedSta
         status: None,
         dirty: false,
     };
+    if let Some(status) = take_picked_image(refs, ui.ctx()) {
+        result.status = Some(status);
+    }
+    let picking = refs.pending_pick.is_some();
     ui.horizontal(|ui| {
-        if ui.button("Open reference").clicked()
-            && let Some(path) = pick_image()
-        {
-            result.status = refs.open_path(ui.ctx(), path);
+        let open = egui::Button::new(if picking {
+            "Opening…"
+        } else {
+            "Open reference"
+        });
+        if ui.add_enabled(!picking, open).clicked() {
+            start_pick(refs, ui.ctx());
         }
         if ui.button("Pin to category").clicked() {
             result = pin_current(refs, root, state);
@@ -203,10 +215,41 @@ fn copy_pin(
     Ok((format!("Pinned {stored}"), true))
 }
 
-fn pick_image() -> Option<PathBuf> {
-    rfd::FileDialog::new()
-        .add_filter("Image", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
-        .pick_file()
+fn start_pick(refs: &mut References, ctx: &Context) {
+    if refs.pending_pick.is_some() {
+        return;
+    }
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let path = rfd::FileDialog::new()
+            .add_filter("Image", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
+            .pick_file();
+        let _ = tx.send(path);
+    });
+    refs.pending_pick = Some(rx);
+    ctx.request_repaint_after(Duration::from_millis(100));
+}
+
+fn take_picked_image(refs: &mut References, ctx: &Context) -> Option<String> {
+    let received = refs.pending_pick.as_ref()?.try_recv();
+    match received {
+        Ok(Some(path)) => {
+            refs.pending_pick = None;
+            refs.open_path(ctx, path)
+        }
+        Ok(None) => {
+            refs.pending_pick = None;
+            None
+        }
+        Err(TryRecvError::Empty) => {
+            ctx.request_repaint_after(Duration::from_millis(100));
+            None
+        }
+        Err(TryRecvError::Disconnected) => {
+            refs.pending_pick = None;
+            Some("Could not open the file dialog.".into())
+        }
+    }
 }
 
 impl References {
