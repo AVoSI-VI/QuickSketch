@@ -1,5 +1,3 @@
-# artproj
-
 A small desktop app for timed sketches. The canvas is infinite, the brush is a single round pen, and a finished sketch is saved by dragging a circle around it.
 
 ## Run
@@ -19,7 +17,7 @@ The window title is `artproj`. The status line shows the folder where sketches a
 ## Drawing
 
 - Left-drag draws.
-- Middle-drag pans. Left Ctrl held with a left-drag also pans.
+- Middle-drag pans.
 - Scroll zooms toward the pointer.
 
 The brush has a size slider and a color picker. Strokes stay on the canvas until you submit a region or quit. Quitting does not save the canvas itself, only categories, pinned references, and the submission index.
