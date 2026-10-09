@@ -58,3 +58,9 @@ The history dropdown lists the same categories. Choosing one shows that category
 | `refs/<category-id>/` | Copies of pinned reference images |
 
 Category folders use ids such as `c1`, not the display name, so renaming a category does not move its files.
+
+#TODO:
+- Make interface more natural
+- Make category addition more obvious
+- bug fixes
+- TBD
