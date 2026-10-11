@@ -50,6 +50,7 @@ pub struct Canvas {
     active: Option<Ink>,
     circle_origin: Option<Point>,
     panning: bool,
+    touch_gesture: bool,
     pub brush_size: f32,
     pub brush_color: Color32,
 }
@@ -62,6 +63,7 @@ impl Default for Canvas {
             active: None,
             circle_origin: None,
             panning: false,
+            touch_gesture: false,
             brush_size: 4.0,
             brush_color: Color32::BLACK,
         }
@@ -133,7 +135,7 @@ impl Canvas {
         ui.painter().text(
             rect.left_top() + Vec2::new(8.0, 8.0),
             egui::Align2::LEFT_TOP,
-            "Left-drag draws. Middle-drag or left Ctrl + left-drag pans. Scroll zooms.",
+            "Left-drag draws. Middle-drag, left Ctrl + left-drag, or two fingers pan. Scroll or pinch zooms.",
             egui::FontId::proportional(12.0),
             Color32::from_black_alpha(140),
         );
@@ -163,6 +165,7 @@ impl Canvas {
         if self.panning {
             self.view.offset += delta;
         }
+        self.apply_touch(ui, rect);
         let scroll = ui.input(|input| input.smooth_scroll_delta().y);
         if scroll != 0.0
             && response.hovered()
@@ -179,6 +182,25 @@ impl Canvas {
         let _ = response.clone().on_hover_cursor(cursor);
     }
 
+    fn apply_touch(&mut self, ui: &Ui, rect: Rect) {
+        let touch = ui.input(|input| input.multi_touch());
+        let Some(touch) = touch else {
+            self.touch_gesture = false;
+            return;
+        };
+        let on_canvas = rect.contains(touch.center_pos) && !floating_menu_at(ui, touch.center_pos);
+        self.touch_gesture = on_canvas;
+        if !on_canvas {
+            return;
+        }
+        if touch.num_touches == 2 {
+            if touch.zoom_delta.is_finite() && touch.zoom_delta != 1.0 {
+                self.view.zoom_at(touch.center_pos, touch.zoom_delta);
+            }
+            self.view.offset += touch.translation_delta;
+        }
+    }
+
     fn apply_pointer(&mut self, ui: &Ui, rect: Rect, tool: &Tool) -> Option<Circle> {
         let primary = PointerButton::Primary;
         let (pressed, down, released, pos) = ui.input(|input| {
@@ -189,6 +211,11 @@ impl Canvas {
                 input.pointer.latest_pos(),
             )
         });
+        if self.touch_gesture {
+            self.active = None;
+            self.circle_origin = None;
+            return None;
+        }
         if self.panning {
             self.circle_origin = None;
             self.commit();

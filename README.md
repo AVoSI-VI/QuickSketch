@@ -31,8 +31,10 @@ The window title is `artproj`. The status line shows the folder where sketches a
 ## Drawing
 
 - Left-drag draws.
-- Middle-drag pans.
+- Middle-drag pans. Left Ctrl + left-drag pans the same way.
 - Scroll zooms toward the pointer.
+- Two-finger pinch zooms toward the gesture.
+- Two-finger drag pans.
 
 The brush has a size slider and a color picker. **Clear canvas** drops every stroke on the canvas and does not save them. A submission circle in progress is cancelled too. Strokes otherwise stay until you submit a region or quit. Quitting does not save the canvas itself, only categories, pinned references, and the submission index.
 
