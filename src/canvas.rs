@@ -201,6 +201,15 @@ impl Canvas {
             }
             return None;
         };
+        // Combo menus float above the canvas. A touch-drag that scrolls one
+        // still reports the primary button as down inside this rect.
+        if floating_menu_at(ui, pos) {
+            if released {
+                self.commit();
+                self.circle_origin = None;
+            }
+            return None;
+        }
         let world = self.view.screen_to_world(pos);
         let over = rect.contains(pos);
         match tool {
@@ -259,6 +268,13 @@ impl Canvas {
             radius: origin.dist(world).max(1.0),
         })
     }
+}
+
+/// True when a popup, such as a category menu, is the top layer at `pos`.
+fn floating_menu_at(ui: &Ui, pos: Pos2) -> bool {
+    ui.ctx()
+        .layer_id_at(pos)
+        .is_some_and(|layer| layer != ui.layer_id())
 }
 
 fn push_point(stroke: &mut Ink, world: Point, zoom: f32) {
