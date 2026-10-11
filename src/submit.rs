@@ -89,7 +89,7 @@ fn unique_png_name(dir: &Path) -> String {
 
 pub fn rasterize(strokes: &[Stroke], circle: Circle) -> RgbaImage {
     let side = export_side(circle.radius);
-    let mut image = RgbaImage::from_pixel(side, side, Rgba([0, 0, 0, 0]));
+    let mut image = RgbaImage::from_pixel(side, side, Rgba([255, 255, 255, 255]));
     let scale = side as f32 / (circle.radius * 2.0);
     for stroke in strokes {
         if stroke.points.len() == 1 {
@@ -219,7 +219,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn raster_paints_the_stroke_and_leaves_the_outside_clear() {
+    fn raster_paints_the_stroke_on_a_white_background() {
         let circle = Circle {
             center: Point { x: 0.0, y: 0.0 },
             radius: 10.0,
@@ -231,8 +231,8 @@ mod tests {
         };
         let image = rasterize(&[stroke], circle);
         let mid = image.width() / 2;
-        assert_eq!(image.get_pixel(mid, mid)[3], 255);
-        assert_eq!(image.get_pixel(0, 0)[3], 0);
+        assert_eq!(image.get_pixel(mid, mid).0, [0, 0, 0, 255]);
+        assert_eq!(image.get_pixel(0, 0).0, [255, 255, 255, 255]);
     }
 
     #[test]

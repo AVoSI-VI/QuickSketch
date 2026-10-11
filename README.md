@@ -1,5 +1,19 @@
 A small desktop app for timed sketches. The canvas is infinite, the brush is a single round pen, and a finished sketch is saved by dragging a circle around it.
 
+## Screenshots
+
+Drawing on the canvas. The status line shows the folder where files are saved.
+
+![Sketch on the canvas](docs/sketch.png)
+
+Start submission, then drag a circle around the sketch. Finish saves that region and clears it from the canvas.
+
+![Circle around a sketch](docs/submit.png)
+
+The history strip for a category, oldest first.
+
+![Submitted sketch in the history strip](docs/history.png)
+
 ## Run
 
 Requires Rust 1.98 or newer.
@@ -39,7 +53,7 @@ Type a name and use **Add**, **Rename**, or **Delete**. Deleting a category remo
 3. Drag on the canvas. The press sets the center and the drag sets the radius.
 4. Press **Finish**.
 
-Finish is available once the circle radius is at least 4 world units. It writes a transparent PNG cropped to the circle, removes only the ink inside that circle, and adds the sketch to the category history. **Cancel** drops the circle and leaves the canvas unchanged.
+Finish is available once the circle radius is at least 4 world units. It writes a PNG cropped to the circle on a white background, removes only the ink inside that circle, and adds the sketch to the category history. **Cancel** drops the circle and leaves the canvas unchanged.
 
 ## References
 
