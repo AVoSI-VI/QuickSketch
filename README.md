@@ -63,7 +63,7 @@ Finish is available once the circle radius is at least 4 world units. It writes 
 
 ## History
 
-The history dropdown lists the same categories. Choosing one shows that category’s submissions in a horizontal strip, oldest first. Each entry is the saved PNG plus the time it was submitted.
+The history dropdown lists the same categories. Choosing one shows that category’s submissions in a horizontal strip, oldest first. Each entry is the saved PNG plus the time it was submitted. Clicking a thumbnail opens that saved image in its own window.
 
 ## Saved files
 

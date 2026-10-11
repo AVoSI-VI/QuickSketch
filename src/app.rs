@@ -17,6 +17,7 @@ pub struct SketchApp {
     timer: SketchTimer,
     submit: SubmitPhase,
     refs: References,
+    sketch_view: history::SketchView,
     name_edit: String,
     status: String,
 }
@@ -40,6 +41,7 @@ impl SketchApp {
             timer: SketchTimer::default(),
             submit: SubmitPhase::default(),
             refs: References::default(),
+            sketch_view: history::SketchView::default(),
             name_edit,
             status,
         };
@@ -127,7 +129,13 @@ impl eframe::App for SketchApp {
         egui::Panel::top("toolbar").show(ui, |ui| self.toolbar(ui));
         let mut history_changed = false;
         egui::Panel::bottom("history").show(ui, |ui| {
-            history_changed = history::show(ui, &mut self.refs, &self.root, &mut self.state);
+            history_changed = history::show(
+                ui,
+                &mut self.refs,
+                &self.root,
+                &mut self.state,
+                &mut self.sketch_view,
+            );
         });
         if history_changed {
             self.remember();
@@ -143,6 +151,7 @@ impl eframe::App for SketchApp {
             }
         });
         reference::show_window(&mut self.refs, ui.ctx());
+        history::show_window(&self.sketch_view, &mut self.refs.cache, ui.ctx());
     }
 
     fn on_exit(&mut self) {

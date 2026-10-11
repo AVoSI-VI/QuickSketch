@@ -1,13 +1,43 @@
 //! Submission history for one category, oldest to newest.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use egui::{ComboBox, Ui, Vec2};
+use egui::{ComboBox, Context, Ui, Vec2};
 
 use crate::persist::{self, SavedState};
-use crate::reference::References;
+use crate::reference::{self, References, TextureCache};
 
-pub fn show(ui: &mut Ui, refs: &mut References, root: &Path, state: &mut SavedState) -> bool {
+/// The sketch currently shown in the history pop-out window.
+pub struct SketchView {
+    path: Option<PathBuf>,
+    open: Arc<AtomicBool>,
+}
+
+impl Default for SketchView {
+    fn default() -> Self {
+        Self {
+            path: None,
+            open: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl SketchView {
+    fn show_path(&mut self, path: PathBuf) {
+        self.path = Some(path);
+        self.open.store(true, Ordering::Relaxed);
+    }
+}
+
+pub fn show(
+    ui: &mut Ui,
+    refs: &mut References,
+    root: &Path,
+    state: &mut SavedState,
+    view: &mut SketchView,
+) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
         ui.label("History");
@@ -60,7 +90,13 @@ pub fn show(ui: &mut Ui, refs: &mut References, root: &Path, state: &mut SavedSt
                         if let Some(texture) = refs.cache.get(ui.ctx(), &path) {
                             let height = 96.0;
                             let width = (texture.aspect_ratio() * height).clamp(32.0, 180.0);
-                            ui.image((texture.id(), Vec2::new(width, height)));
+                            let response = ui.add(
+                                egui::Image::from_texture((texture.id(), Vec2::new(width, height)))
+                                    .sense(egui::Sense::click()),
+                            );
+                            if response.clicked() {
+                                view.show_path(path);
+                            }
                         } else {
                             ui.label("missing");
                         }
@@ -70,6 +106,29 @@ pub fn show(ui: &mut Ui, refs: &mut References, root: &Path, state: &mut SavedSt
             });
         });
     changed
+}
+
+pub fn show_window(view: &SketchView, cache: &mut TextureCache, ctx: &Context) {
+    if !view.open.load(Ordering::Relaxed) {
+        return;
+    }
+    let Some(path) = view.path.clone() else {
+        view.open.store(false, Ordering::Relaxed);
+        return;
+    };
+    let texture = cache.get(ctx, &path);
+    let title = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Sketch".into());
+    reference::show_fitted_image(
+        ctx,
+        "artproj-sketch",
+        title,
+        texture,
+        Arc::clone(&view.open),
+        "Could not load the sketch.",
+    );
 }
 
 fn short_date(created_at: &str) -> String {

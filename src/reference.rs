@@ -119,13 +119,31 @@ pub fn show_window(refs: &mut References, ctx: &Context) {
         return;
     };
     let texture = refs.cache.get(ctx, &path);
-    let open = Arc::clone(&refs.open);
     let title = path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| "Reference".into());
+    show_fitted_image(
+        ctx,
+        "artproj-reference",
+        title,
+        texture,
+        Arc::clone(&refs.open),
+        "Could not load the reference image.",
+    );
+}
+
+/// Pop-out window that scales `texture` to the viewport. `id` must be unique per window.
+pub fn show_fitted_image(
+    ctx: &Context,
+    id: &str,
+    title: String,
+    texture: Option<TextureHandle>,
+    open: Arc<AtomicBool>,
+    missing: &'static str,
+) {
     ctx.show_viewport_deferred(
-        egui::ViewportId::from_hash_of("artproj-reference"),
+        egui::ViewportId::from_hash_of(id),
         egui::ViewportBuilder::default()
             .with_title(title)
             .with_inner_size([720.0, 720.0]),
@@ -134,7 +152,7 @@ pub fn show_window(refs: &mut References, ctx: &Context) {
                 open.store(false, Ordering::Relaxed);
             }
             let Some(texture) = &texture else {
-                ui.label("Could not load the reference image.");
+                ui.label(missing);
                 return;
             };
             let available = ui.available_size();
