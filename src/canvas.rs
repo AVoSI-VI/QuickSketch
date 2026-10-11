@@ -74,12 +74,25 @@ pub enum Tool {
 }
 
 impl Canvas {
-    pub fn brush_ui(&mut self, ui: &mut Ui) {
+    /// Returns true when the canvas was cleared.
+    pub fn brush_ui(&mut self, ui: &mut Ui) -> bool {
+        let mut cleared = false;
         ui.horizontal(|ui| {
             ui.label("Brush");
             ui.add(egui::Slider::new(&mut self.brush_size, 1.0..=64.0).text("size"));
             ui.color_edit_button_srgba(&mut self.brush_color);
+            if ui.button("Clear canvas").clicked() {
+                self.clear();
+                cleared = true;
+            }
         });
+        cleared
+    }
+
+    pub fn clear(&mut self) {
+        self.strokes.clear();
+        self.active = None;
+        self.circle_origin = None;
     }
 
     pub fn commit(&mut self) {

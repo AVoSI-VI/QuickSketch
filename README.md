@@ -34,7 +34,7 @@ The window title is `artproj`. The status line shows the folder where sketches a
 - Middle-drag pans.
 - Scroll zooms toward the pointer.
 
-The brush has a size slider and a color picker. Strokes stay on the canvas until you submit a region or quit. Quitting does not save the canvas itself, only categories, pinned references, and the submission index.
+The brush has a size slider and a color picker. **Clear canvas** drops every stroke on the canvas and does not save them. A submission circle in progress is cancelled too. Strokes otherwise stay until you submit a region or quit. Quitting does not save the canvas itself, only categories, pinned references, and the submission index.
 
 ## Timer
 
@@ -76,6 +76,5 @@ Category folders use ids such as `c1`, not the display name, so renaming a categ
 #TODO:
 - Make interface more natural
 - Make category addition more obvious
-- add ability to clear canvas
 - bug fixes
 - TBD

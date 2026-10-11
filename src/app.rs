@@ -74,7 +74,10 @@ impl SketchApp {
         if action.finish {
             self.finish_submission();
         }
-        self.canvas.brush_ui(ui);
+        if self.canvas.brush_ui(ui) {
+            self.submit.cancel();
+            self.status = "Canvas cleared.".into();
+        }
         let pinned = reference::bar(ui, &mut self.refs, &self.root, &mut self.state);
         if pinned.dirty {
             self.remember();
