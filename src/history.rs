@@ -128,6 +128,7 @@ pub fn show_window(view: &SketchView, cache: &mut TextureCache, ctx: &Context) {
         texture,
         Arc::clone(&view.open),
         "Could not load the sketch.",
+        egui::WindowLevel::Normal,
     );
 }
 

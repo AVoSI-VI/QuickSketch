@@ -59,7 +59,7 @@ Finish is available once the circle radius is at least 4 world units. It writes 
 
 ## References
 
-**Open reference** picks a PNG, JPEG, WebP, GIF, or BMP in a file dialog and opens it in a separate window. **Pin to category** copies that file into the active category so it stays available if the original moves. Click a pinned thumbnail to open it again.
+**Open reference** picks a PNG, JPEG, WebP, GIF, or BMP in a file dialog and opens it in a separate window. **Pin to category** copies that file into the active category so it stays available if the original moves. Click a pinned thumbnail to open it again. **Keep on top** holds the reference window above the drawing window.
 
 ## History
 

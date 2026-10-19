@@ -46,6 +46,7 @@ pub struct References {
     pub cache: TextureCache,
     /// File dialog running off the UI thread so the window keeps responding.
     pending_pick: Option<Receiver<Option<PathBuf>>>,
+    on_top: bool,
 }
 
 impl Default for References {
@@ -55,6 +56,7 @@ impl Default for References {
             open: Arc::new(AtomicBool::new(false)),
             cache: TextureCache::default(),
             pending_pick: None,
+            on_top: false,
         }
     }
 }
@@ -85,6 +87,7 @@ pub fn bar(ui: &mut Ui, refs: &mut References, root: &Path, state: &mut SavedSta
         if ui.button("Pin to category").clicked() {
             result = pin_current(refs, root, state);
         }
+        ui.checkbox(&mut refs.on_top, "Keep on top");
     });
     let active = state.active_category.clone();
     let pinned = active
@@ -123,6 +126,11 @@ pub fn show_window(refs: &mut References, ctx: &Context) {
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| "Reference".into());
+    let level = if refs.on_top {
+        egui::WindowLevel::AlwaysOnTop
+    } else {
+        egui::WindowLevel::Normal
+    };
     show_fitted_image(
         ctx,
         "artproj-reference",
@@ -130,6 +138,7 @@ pub fn show_window(refs: &mut References, ctx: &Context) {
         texture,
         Arc::clone(&refs.open),
         "Could not load the reference image.",
+        level,
     );
 }
 
@@ -141,12 +150,14 @@ pub fn show_fitted_image(
     texture: Option<TextureHandle>,
     open: Arc<AtomicBool>,
     missing: &'static str,
+    level: egui::WindowLevel,
 ) {
     ctx.show_viewport_deferred(
         egui::ViewportId::from_hash_of(id),
         egui::ViewportBuilder::default()
             .with_title(title)
-            .with_inner_size([720.0, 720.0]),
+            .with_inner_size([720.0, 720.0])
+            .with_window_level(level),
         move |ui, _class| {
             if ui.input(|input| input.viewport().close_requested()) {
                 open.store(false, Ordering::Relaxed);
