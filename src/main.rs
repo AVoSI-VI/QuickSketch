@@ -7,6 +7,7 @@ mod reference;
 mod stroke;
 mod submit;
 mod timer;
+mod view;
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {

@@ -8,7 +8,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::Duration;
 
-use egui::{Context, TextureHandle, Ui, Vec2};
+use egui::{Context, Pos2, Rect, Sense, TextureHandle, Ui, Vec2};
+
+use crate::view::{self, Nav, View};
 
 use crate::persist::{self, SavedState};
 
@@ -115,6 +117,7 @@ pub fn bar(ui: &mut Ui, refs: &mut References, root: &Path, state: &mut SavedSta
 
 pub fn show_window(refs: &mut References, ctx: &Context) {
     if !refs.open.load(Ordering::Relaxed) {
+        clear_fitted_image(ctx, "QuickSketch-reference");
         return;
     }
     let Some(path) = refs.current.clone() else {
@@ -133,27 +136,61 @@ pub fn show_window(refs: &mut References, ctx: &Context) {
     };
     show_fitted_image(
         ctx,
-        "QuickSketch-reference",
-        title,
-        texture,
-        Arc::clone(&refs.open),
-        "Could not load the reference image.",
-        level,
+        FittedImage {
+            viewport: "QuickSketch-reference",
+            image_key: path.display().to_string(),
+            title,
+            texture,
+            open: Arc::clone(&refs.open),
+            missing: "Could not load the reference image.",
+            level,
+        },
     );
 }
 
-/// Pop-out window that scales `texture` to the viewport. `id` must be unique per window.
-pub fn show_fitted_image(
-    ctx: &Context,
-    id: &str,
-    title: String,
-    texture: Option<TextureHandle>,
-    open: Arc<AtomicBool>,
-    missing: &'static str,
-    level: egui::WindowLevel,
-) {
+/// Drop the stored pan and zoom for a fitted-image window.
+pub fn clear_fitted_image(ctx: &Context, id: &str) {
+    ctx.data_mut(|data| data.remove::<ImageFrame>(frame_id(id)));
+}
+
+fn frame_id(viewport: &str) -> egui::Id {
+    // One slot per window. The image key lives on the frame, so a different
+    // image refits instead of keeping the previous pan and zoom.
+    egui::Id::new(("fitted-image", viewport))
+}
+
+#[derive(Clone)]
+struct ImageFrame {
+    key: String,
+    view: View,
+    nav: Nav,
+}
+
+pub struct FittedImage {
+    pub viewport: &'static str,
+    pub image_key: String,
+    pub title: String,
+    pub texture: Option<TextureHandle>,
+    pub open: Arc<AtomicBool>,
+    pub missing: &'static str,
+    pub level: egui::WindowLevel,
+}
+
+/// Pop-out window that fits the texture to the viewport, then pans and zooms.
+/// `viewport` must be unique per window. A new `image_key` refits the view.
+pub fn show_fitted_image(ctx: &Context, image: FittedImage) {
+    let FittedImage {
+        viewport,
+        image_key,
+        title,
+        texture,
+        open,
+        missing,
+        level,
+    } = image;
+    let viewport_id = viewport.to_owned();
     ctx.show_viewport_deferred(
-        egui::ViewportId::from_hash_of(id),
+        egui::ViewportId::from_hash_of(viewport),
         egui::ViewportBuilder::default()
             .with_title(title)
             .with_inner_size([720.0, 720.0])
@@ -161,21 +198,49 @@ pub fn show_fitted_image(
         move |ui, _class| {
             if ui.input(|input| input.viewport().close_requested()) {
                 open.store(false, Ordering::Relaxed);
+                clear_fitted_image(ui.ctx(), &viewport_id);
+                return;
             }
             let Some(texture) = &texture else {
                 ui.label(missing);
                 return;
             };
-            let available = ui.available_size();
-            let sized = texture.size_vec2();
-            let scale = if sized.x > 0.0 && sized.y > 0.0 {
-                (available.x / sized.x).min(available.y / sized.y).max(0.01)
-            } else {
-                1.0
-            };
-            ui.image((texture.id(), sized * scale));
+            paint_navigated_image(ui, &viewport_id, &image_key, texture);
         },
     );
+}
+
+fn paint_navigated_image(ui: &mut Ui, viewport: &str, image_key: &str, texture: &TextureHandle) {
+    let rect = ui.available_rect_before_wrap();
+    let response = ui.allocate_rect(rect, Sense::click_and_drag());
+    let memory_id = frame_id(viewport);
+    let stored = ui.data_mut(|data| data.get_persisted::<ImageFrame>(memory_id));
+    let sized = texture.size_vec2();
+    let mut frame = match stored {
+        Some(frame) if frame.key == image_key => frame,
+        _ if rect.width() > 0.0 && rect.height() > 0.0 => ImageFrame {
+            key: image_key.to_owned(),
+            view: View::fit(rect, sized),
+            nav: Nav::default(),
+        },
+        Some(frame) => frame,
+        None => return,
+    };
+    view::apply(
+        &mut frame.view,
+        &mut frame.nav,
+        &response,
+        ui,
+        rect,
+        |_ui, _pos: Pos2| false,
+    );
+    ui.painter().with_clip_rect(rect).image(
+        texture.id(),
+        frame.view.image_rect(sized),
+        Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+        egui::Color32::WHITE,
+    );
+    ui.data_mut(|data| data.insert_persisted(memory_id, frame));
 }
 
 fn thumb(ui: &mut Ui, refs: &mut References, path: &Path) -> egui::Response {

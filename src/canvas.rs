@@ -1,56 +1,16 @@
 //! Infinite canvas: pan, zoom, and a single round brush.
 
-use egui::{
-    Color32, CursorIcon, Key, Painter, PointerButton, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2,
-};
+use egui::{Color32, CursorIcon, Painter, PointerButton, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 
 use crate::stroke::{Circle, Point, Stroke as Ink};
-
-pub struct View {
-    /// `screen = world * zoom + offset`
-    offset: Vec2,
-    zoom: f32,
-}
-
-impl Default for View {
-    fn default() -> Self {
-        Self {
-            offset: Vec2::ZERO,
-            zoom: 1.0,
-        }
-    }
-}
-
-impl View {
-    pub fn world_to_screen(&self, point: Point) -> Pos2 {
-        Pos2::new(
-            point.x * self.zoom + self.offset.x,
-            point.y * self.zoom + self.offset.y,
-        )
-    }
-
-    pub fn screen_to_world(&self, pos: Pos2) -> Point {
-        Point {
-            x: (pos.x - self.offset.x) / self.zoom,
-            y: (pos.y - self.offset.y) / self.zoom,
-        }
-    }
-
-    fn zoom_at(&mut self, screen: Pos2, factor: f32) {
-        let before = self.screen_to_world(screen);
-        self.zoom = (self.zoom * factor).clamp(0.08, 24.0);
-        let after = self.world_to_screen(before);
-        self.offset += screen.to_vec2() - after.to_vec2();
-    }
-}
+use crate::view::{self, Nav, View};
 
 pub struct Canvas {
     view: View,
     strokes: Vec<Ink>,
     active: Option<Ink>,
     circle_origin: Option<Point>,
-    panning: bool,
-    touch_gesture: bool,
+    nav: Nav,
     pub brush_size: f32,
     pub brush_color: Color32,
 }
@@ -62,8 +22,7 @@ impl Default for Canvas {
             strokes: Vec::new(),
             active: None,
             circle_origin: None,
-            panning: false,
-            touch_gesture: false,
+            nav: Nav::default(),
             brush_size: 4.0,
             brush_color: Color32::BLACK,
         }
@@ -113,7 +72,17 @@ impl Canvas {
     pub fn show(&mut self, ui: &mut Ui, tool: &Tool) -> Option<Circle> {
         let rect = ui.available_rect_before_wrap();
         let response = ui.allocate_rect(rect, Sense::click_and_drag());
-        self.apply_view(&response, ui, rect);
+        view::apply(
+            &mut self.view,
+            &mut self.nav,
+            &response,
+            ui,
+            rect,
+            floating_menu_at,
+        );
+        if !self.nav.panning {
+            let _ = response.clone().on_hover_cursor(CursorIcon::Crosshair);
+        }
         let drawn = self.apply_pointer(ui, rect, tool);
 
         let painter = ui.painter().with_clip_rect(rect);
@@ -142,65 +111,6 @@ impl Canvas {
         selection
     }
 
-    fn apply_view(&mut self, response: &Response, ui: &Ui, rect: Rect) {
-        let (middle_down, middle_pressed, ctrl_left, primary_down, delta, pos) =
-            ui.input(|input| {
-                (
-                    input.pointer.button_down(PointerButton::Middle),
-                    input.pointer.button_pressed(PointerButton::Middle),
-                    input.key_down(Key::ControlLeft),
-                    input.pointer.button_down(PointerButton::Primary),
-                    input.pointer.delta(),
-                    input.pointer.latest_pos(),
-                )
-            });
-        let over = pos.is_some_and(|pos| rect.contains(pos));
-        let ctrl_pan = ctrl_left && primary_down;
-        if (middle_pressed && over) || (ctrl_pan && over && !self.panning) {
-            self.panning = true;
-        }
-        if !middle_down && !ctrl_pan {
-            self.panning = false;
-        }
-        if self.panning {
-            self.view.offset += delta;
-        }
-        self.apply_touch(ui, rect);
-        let scroll = ui.input(|input| input.smooth_scroll_delta().y);
-        if scroll != 0.0
-            && response.hovered()
-            && let Some(pos) = response.hover_pos()
-        {
-            ui.input_mut(|input| input.smooth_scroll_delta = Vec2::ZERO);
-            self.view.zoom_at(pos, (scroll * 0.002).exp());
-        }
-        let cursor = if self.panning {
-            CursorIcon::Grabbing
-        } else {
-            CursorIcon::Crosshair
-        };
-        let _ = response.clone().on_hover_cursor(cursor);
-    }
-
-    fn apply_touch(&mut self, ui: &Ui, rect: Rect) {
-        let touch = ui.input(|input| input.multi_touch());
-        let Some(touch) = touch else {
-            self.touch_gesture = false;
-            return;
-        };
-        let on_canvas = rect.contains(touch.center_pos) && !floating_menu_at(ui, touch.center_pos);
-        self.touch_gesture = on_canvas;
-        if !on_canvas {
-            return;
-        }
-        if touch.num_touches == 2 {
-            if touch.zoom_delta.is_finite() && touch.zoom_delta != 1.0 {
-                self.view.zoom_at(touch.center_pos, touch.zoom_delta);
-            }
-            self.view.offset += touch.translation_delta;
-        }
-    }
-
     fn apply_pointer(&mut self, ui: &Ui, rect: Rect, tool: &Tool) -> Option<Circle> {
         let primary = PointerButton::Primary;
         let (pressed, down, released, pos) = ui.input(|input| {
@@ -211,12 +121,12 @@ impl Canvas {
                 input.pointer.latest_pos(),
             )
         });
-        if self.touch_gesture {
+        if self.nav.touch_gesture {
             self.active = None;
             self.circle_origin = None;
             return None;
         }
-        if self.panning {
+        if self.nav.panning {
             self.circle_origin = None;
             self.commit();
             return None;
@@ -253,13 +163,13 @@ impl Canvas {
             self.active = Some(Ink {
                 points: vec![world],
                 color: color_bytes(self.brush_color),
-                width: self.brush_size / self.view.zoom,
+                width: self.brush_size / self.view.zoom(),
             });
         } else if down && let Some(stroke) = &mut self.active {
-            push_point(stroke, world, self.view.zoom);
+            push_point(stroke, world, self.view.zoom());
         }
         if released && let Some(stroke) = &mut self.active {
-            push_point(stroke, world, self.view.zoom);
+            push_point(stroke, world, self.view.zoom());
         }
         if released {
             self.commit();
@@ -321,10 +231,10 @@ fn color_bytes(color: Color32) -> [u8; 4] {
 
 fn draw_grid(painter: &Painter, rect: Rect, view: &View) {
     let mut step = 64.0;
-    while step * view.zoom < 12.0 {
+    while step * view.zoom() < 12.0 {
         step *= 2.0;
     }
-    while step * view.zoom > 160.0 && step > 8.0 {
+    while step * view.zoom() > 160.0 && step > 8.0 {
         step *= 0.5;
     }
     let top_left = view.screen_to_world(rect.min);
@@ -359,7 +269,7 @@ fn paint_ink(painter: &Painter, view: &View, stroke: &Ink) {
         stroke.color[2],
         stroke.color[3],
     );
-    let width = (stroke.width * view.zoom).max(1.0);
+    let width = (stroke.width * view.zoom()).max(1.0);
     let paint = Stroke::new(width, color);
     for pair in stroke.points.windows(2) {
         painter.line_segment(
@@ -375,7 +285,7 @@ fn paint_ink(painter: &Painter, view: &View, stroke: &Ink) {
 
 fn paint_circle(painter: &Painter, view: &View, circle: Circle) {
     let center = view.world_to_screen(circle.center);
-    let radius = circle.radius * view.zoom;
+    let radius = circle.radius * view.zoom();
     painter.circle_filled(
         center,
         radius,

@@ -110,6 +110,7 @@ pub fn show(
 
 pub fn show_window(view: &SketchView, cache: &mut TextureCache, ctx: &Context) {
     if !view.open.load(Ordering::Relaxed) {
+        reference::clear_fitted_image(ctx, "QuickSketch-sketch");
         return;
     }
     let Some(path) = view.path.clone() else {
@@ -123,12 +124,15 @@ pub fn show_window(view: &SketchView, cache: &mut TextureCache, ctx: &Context) {
         .unwrap_or_else(|| "Sketch".into());
     reference::show_fitted_image(
         ctx,
-        "QuickSketch-sketch",
-        title,
-        texture,
-        Arc::clone(&view.open),
-        "Could not load the sketch.",
-        egui::WindowLevel::Normal,
+        reference::FittedImage {
+            viewport: "QuickSketch-sketch",
+            image_key: path.display().to_string(),
+            title,
+            texture,
+            open: Arc::clone(&view.open),
+            missing: "Could not load the sketch.",
+            level: egui::WindowLevel::Normal,
+        },
     );
 }
 
