@@ -24,13 +24,15 @@ jobs:
             target: x86_64-unknown-linux-gnu
             binary: QuickSketch
             archive: linux-x86_64.tar.gz
+            rustflags: ""
           - name: Windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: QuickSketch.exe
             archive: windows-x86_64.zip
+            rustflags: "-C target-feature=+crt-static"
     env:
-      RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
+      RUSTFLAGS: ${{ matrix.rustflags }}
     steps:
       - uses: actions/checkout@v4
 
