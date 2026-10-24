@@ -1,6 +1,6 @@
 [package]
-name = "artproj"
-version = "0.1.0"
+name = "QuickSketch"
+version = "0.5.0"
 edition = "2024"
 
 [dependencies]

@@ -26,7 +26,7 @@ cargo run
 cargo test
 ```
 
-The window title is `artproj`. The status line shows the folder where sketches and settings are stored. On Linux that is usually `~/.local/share/artproj`. If the standard data directory cannot be found, files go in `artproj-data` next to the working directory.
+The window title is `QuickSketch`. The status line shows the folder where sketches and settings are stored. On Linux that is usually `~/.local/share/QuickSketch`. If the standard data directory cannot be found, files go in `QuickSketch-data` next to the working directory.
 
 ## Drawing
 

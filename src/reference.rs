@@ -133,7 +133,7 @@ pub fn show_window(refs: &mut References, ctx: &Context) {
     };
     show_fitted_image(
         ctx,
-        "artproj-reference",
+        "QuickSketch-reference",
         title,
         texture,
         Arc::clone(&refs.open),

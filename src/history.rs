@@ -123,7 +123,7 @@ pub fn show_window(view: &SketchView, cache: &mut TextureCache, ctx: &Context) {
         .unwrap_or_else(|| "Sketch".into());
     reference::show_fitted_image(
         ctx,
-        "artproj-sketch",
+        "QuickSketch-sketch",
         title,
         texture,
         Arc::clone(&view.open),

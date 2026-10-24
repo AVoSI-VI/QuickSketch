@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn finish_saves_and_clears_only_the_inside() {
-        let root = std::env::temp_dir().join(format!("artproj-submit-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("QuickSketch-submit-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let mut phase = SubmitPhase::default();
         phase.begin("c1".into());

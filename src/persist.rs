@@ -78,9 +78,9 @@ impl SavedState {
 }
 
 pub fn data_dir() -> PathBuf {
-    directories::ProjectDirs::from("com", "artproj", "artproj")
+    directories::ProjectDirs::from("com", "QuickSketch", "QuickSketch")
         .map(|dirs| dirs.data_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("artproj-data"))
+        .unwrap_or_else(|| PathBuf::from("QuickSketch-data"))
 }
 
 pub fn load(root: &Path) -> SavedState {
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn round_trips_state() {
-        let root = std::env::temp_dir().join(format!("artproj-test-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("QuickSketch-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let mut state = SavedState::default();
         let id = state.alloc_id();
